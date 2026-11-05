@@ -45,6 +45,8 @@ class ExpressionTrainer {
     this.statHedges = document.getElementById('stat-hedges');
     this.statVague = document.getElementById('stat-vague');
     this.statDensity = document.getElementById('stat-density');
+    this.btnLiveAssist = document.getElementById('btn-live-assist');
+    this.legalList = document.getElementById('legal-list');
   }
 
   bindEvents() {
@@ -69,6 +71,76 @@ class ExpressionTrainer {
     this.btnCopyText.addEventListener('click', () => this.copyOriginalText());
     this.btnSaveText.addEventListener('click', () => this.saveOriginalText());
     this.btnClear.addEventListener('click', () => this.clearAll());
+
+    // 直播法律助手
+    this.btnLiveAssist.addEventListener('click', async () => {
+      const { liveAssist } = await window.api.toggleLiveAssist();
+      this.setLiveAssistUI(liveAssist);
+    });
+    window.api.getLiveAssist().then(({ liveAssist }) => this.setLiveAssistUI(liveAssist));
+    window.api.onLiveAssistPending(({ id, question }) => this.addLegalCard(id, question));
+    window.api.onLiveAssistResult((data) => this.updateLegalCard(data));
+    window.api.onLiveAssistCancel(({ id }) => {
+      const card = this.legalList.querySelector(`[data-id="${id}"]`);
+      if (card) card.remove();
+    });
+  }
+
+  setLiveAssistUI(on) {
+    this.btnLiveAssist.classList.toggle('live-assist-on', on);
+    this.btnLiveAssist.classList.toggle('live-assist-off', !on);
+    this.btnLiveAssist.title = on ? '直播法律助手：开（点击关闭）' : '直播法律助手：关（点击开启）';
+  }
+
+  // ===== 直播法律问答助手 =====
+
+  addLegalCard(id, question) {
+    const hint = this.legalList.querySelector('.legal-hint');
+    if (hint) hint.remove();
+
+    const card = document.createElement('div');
+    card.className = 'legal-card legal-pending';
+    card.dataset.id = id;
+    card.innerHTML = `
+      <div class="legal-question">🙋 ${this.escapeHtml(question)}</div>
+      <div class="legal-answer">检索中…</div>
+    `;
+    this.legalList.insertBefore(card, this.legalList.firstChild);
+    while (this.legalList.children.length > 10) {
+      this.legalList.removeChild(this.legalList.lastChild);
+    }
+  }
+
+  updateLegalCard({ id, question, answer, cases }) {
+    let card = this.legalList.querySelector(`[data-id="${id}"]`);
+    if (!card) {
+      this.addLegalCard(id, question);
+      card = this.legalList.querySelector(`[data-id="${id}"]`);
+    }
+    card.classList.remove('legal-pending');
+
+    let casesHtml = '';
+    if (cases && cases.length > 0) {
+      const items = cases.map(c =>
+        c.url
+          ? `<a class="legal-case-link" href="${c.url}" target="_blank">${this.escapeHtml(c.title)}</a>`
+          : `<span class="legal-case-link">${this.escapeHtml(c.title)}</span>`
+      ).join('');
+      casesHtml = `<div class="legal-cases">📚 类似判例：${items}</div>`;
+    }
+
+    card.innerHTML = `
+      <div class="legal-question">🙋 ${this.escapeHtml(question)}</div>
+      <div class="legal-answer">${this.escapeHtml(answer)}</div>
+      ${casesHtml}
+    `;
+  }
+
+  escapeHtml(text) {
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
   }
 
   // ===== 录制控制 =====

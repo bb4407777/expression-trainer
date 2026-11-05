@@ -31,6 +31,19 @@ contextBridge.exposeInMainWorld('api', {
   getFinalReport: (data) => ipcRenderer.invoke('get-final-report', data),
   testLLMConnection: (settings) => ipcRenderer.invoke('test-llm-connection', settings),
 
+  // 直播法律助手
+  getLiveAssist: () => ipcRenderer.invoke('get-live-assist'),
+  toggleLiveAssist: () => ipcRenderer.invoke('toggle-live-assist'),
+  onLiveAssistPending: (callback) => {
+    ipcRenderer.on('live-assist-pending', (event, data) => callback(data));
+  },
+  onLiveAssistResult: (callback) => {
+    ipcRenderer.on('live-assist-result', (event, data) => callback(data));
+  },
+  onLiveAssistCancel: (callback) => {
+    ipcRenderer.on('live-assist-cancel', (event, data) => callback(data));
+  },
+
   // 文件保存
   saveFile: (content, filename) => ipcRenderer.invoke('save-file', content, filename),
 });

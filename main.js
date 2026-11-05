@@ -4,6 +4,7 @@ const fs = require('fs');
 const { initASR, feedAudio, stopRecognition } = require('./lib/asr');
 const { loadLexicon, analyzeText } = require('./lib/lexicon');
 const { sendFeedback, sendReport, testConnection } = require('./lib/ai-feedback');
+const { detectLegalQuestion, answerLegalQuestion } = require('./lib/live-assist');
 
 // 覆盖应用显示名称（菜单栏、Dock、任务栏、窗口标题）
 app.setName('宇宙无敌表达训练');
@@ -260,6 +261,18 @@ ipcMain.handle('close-current-window', (event) => {
 // 语音识别相关 - Web Audio方案
 ipcMain.handle('init-asr', async () => {
   try {
+    // macOS：开发版 Electron 需要显式触发系统麦克风授权，
+    // 否则 getUserMedia 可能拿到静音流（能"录"但识别不出任何内容）
+    if (process.platform === 'darwin') {
+      const { systemPreferences } = require('electron');
+      const status = systemPreferences.getMediaAccessStatus('microphone');
+      if (status !== 'granted') {
+        const granted = await systemPreferences.askForMediaAccess('microphone');
+        if (!granted) {
+          return { success: false, error: '麦克风权限未授予：请在 系统设置 → 隐私与安全性 → 麦克风 中允许「Electron」，然后重启应用' };
+        }
+      }
+    }
     await initASR();
     asrReady = true;
     return { success: true };
@@ -273,7 +286,52 @@ ipcMain.handle('feed-audio', (event, samplesArray) => {
   if (!asrReady) return null;
   const samples = new Float32Array(samplesArray);
   const result = feedAudio(samples);
+  if (result && result.isFinal && result.text) {
+    maybeLiveAssist(result.text);
+  }
   return result; // { text, isFinal } or null
+});
+
+// 直播法律助手：检测法律提问 → 后台检索/答复 → 推送到右栏面板
+function maybeLiveAssist(text) {
+  const settings = loadSettings();
+  if (settings.liveAssist === false) return;
+  if (!detectLegalQuestion(text)) return;
+
+  const id = Date.now();
+  if (mainWindow) {
+    mainWindow.webContents.send('live-assist-pending', { id, question: text.trim() });
+  }
+  const providerConfig = getCurrentProviderSettings(settings);
+  answerLegalQuestion(text, { ...settings, ...providerConfig })
+    .then(result => {
+      if (result && mainWindow) {
+        mainWindow.webContents.send('live-assist-result', { id, ...result });
+      } else if (!result && mainWindow) {
+        // 被限流：撤掉 pending 卡片
+        mainWindow.webContents.send('live-assist-cancel', { id });
+      }
+    })
+    .catch(err => {
+      if (mainWindow) {
+        mainWindow.webContents.send('live-assist-result', {
+          id, question: text.trim(), answer: `答复生成失败: ${err.message}`, cases: []
+        });
+      }
+    });
+}
+
+// 直播助手开关
+ipcMain.handle('get-live-assist', () => {
+  const settings = loadSettings();
+  return { liveAssist: settings.liveAssist !== false };
+});
+
+ipcMain.handle('toggle-live-assist', () => {
+  const settings = loadSettings();
+  settings.liveAssist = settings.liveAssist === false;
+  saveSettings(settings);
+  return { liveAssist: settings.liveAssist };
 });
 
 ipcMain.handle('stop-asr', () => {

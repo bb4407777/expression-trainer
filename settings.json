@@ -1,0 +1,23 @@
+{
+  "_comment": "AI 后端占位配置模板。应用运行时实际读取/写入的是 ~/Library/Application Support/宇宙无敌表达训练/settings.json(由应用内 ⚙️ 设置页保存);此文件为参考模板。apiKey 留空,首次使用时在应用内 ⚙️ 设置页填入 DeepSeek/OpenAI 的 key,或用 Ollama(本地,无需 key)。",
+  "provider": "deepseek",
+  "providers": {
+    "openai": {
+      "apiKey": "",
+      "model": "gpt-4o-mini"
+    },
+    "deepseek": {
+      "apiKey": "",
+      "model": "deepseek-chat"
+    },
+    "ollama": {
+      "ollamaUrl": "http://localhost:11434",
+      "model": "qwen2.5:7b"
+    },
+    "custom": {
+      "apiKey": "",
+      "baseUrl": "https://api.example.com/v1",
+      "model": ""
+    }
+  }
+}

@@ -40,6 +40,7 @@
         <span class="app-title">宇宙无敌表达训练系统</span>
         <div class="topbar-right">
           <span id="timer" class="timer">00:00</span>
+          <button id="btn-live-assist" class="btn-icon live-assist-on" title="直播法律助手开关">⚖️</button>
           <button id="btn-prompt-editor" class="btn-icon" title="训练规则">🎯</button>
           <button id="btn-settings" class="btn-icon" title="设置">⚙️</button>
         </div>
@@ -89,11 +90,15 @@
       </div>
     </main>
 
-    <!-- 右栏：实时反馈 -->
+    <!-- 右栏：实时反馈 + 法律问答助手 -->
     <aside class="panel-right">
       <div class="panel-title">💡 实时反馈</div>
       <div id="feedback-content" class="feedback-content">
         <!-- 实时反馈内容 -->
+      </div>
+      <div class="panel-title legal-title">⚖️ 法律问答助手</div>
+      <div id="legal-list" class="legal-list">
+        <div class="legal-hint">直播时说出的法律问题会自动出现在这里</div>
       </div>
     </aside>
   </div>
